@@ -1,0 +1,43 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.7, pytest-7.4.2, pluggy-1.6.0 -- /mnt/0E647A43647A2E19/e-Learning/myProjects/NYMBIS-EC2-Health-Check-API/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /mnt/0E647A43647A2E19/e-Learning/myProjects/NYMBIS-EC2-Health-Check-API
+plugins: cov-4.1.0, mock-3.11.1
+collecting ... collected 19 items
+
+tests/test_api.py::TestHealthCheckEndpoint::test_endpoint_requires_api_key PASSED [  5%]
+tests/test_api.py::TestHealthCheckEndpoint::test_endpoint_rejects_invalid_api_key PASSED [ 10%]
+tests/test_api.py::TestHealthCheckEndpoint::test_endpoint_with_valid_api_key_request_structure PASSED [ 15%]
+tests/test_api.py::TestHealthCheckEndpoint::test_response_json_format_on_success PASSED [ 21%]
+tests/test_api.py::TestHealthCheckEndpoint::test_instance_not_found_returns_404 PASSED [ 26%]
+tests/test_api.py::TestHealthCheckEndpoint::test_aws_api_failure_returns_500 PASSED [ 31%]
+tests/test_api.py::TestHealthCheckEndpoint::test_instance_id_in_url_parameter PASSED [ 36%]
+tests/test_api.py::TestHealthCheckEndpoint::test_http_method_must_be_get PASSED [ 42%]
+tests/test_api.py::TestHealthCheckEndpoint::test_response_timestamp_format PASSED [ 47%]
+tests/test_api.py::TestHealthCheckEndpoint::test_multiple_valid_api_keys PASSED [ 52%]
+tests/test_api.py::TestHealthCheckEndpoint::test_error_response_consistency PASSED [ 57%]
+tests/test_api.py::TestAPIKeyAuthentication::test_missing_api_key_header PASSED [ 63%]
+tests/test_api.py::TestAPIKeyAuthentication::test_empty_api_key_header PASSED [ 68%]
+tests/test_api.py::TestAPIKeyAuthentication::test_api_key_case_sensitivity PASSED [ 73%]
+tests/test_api.py::TestAPIKeyAuthentication::test_api_key_whitespace_sensitivity PASSED [ 78%]
+tests/test_api.py::TestLogging::test_successful_request_is_logged PASSED [ 84%]
+tests/test_api.py::TestLogging::test_failed_authentication_is_logged PASSED [ 89%]
+tests/test_api.py::TestLogging::test_instance_not_found_is_logged PASSED [ 94%]
+tests/test_api.py::TestLogging::test_aws_error_is_logged PASSED          [100%]
+
+=============================== warnings summary ===============================
+tests/test_api.py: 15 warnings
+  /mnt/0E647A43647A2E19/e-Learning/myProjects/NYMBIS-EC2-Health-Check-API/app/infrastructure/logging/logger.py:28: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+tests/test_api.py::TestHealthCheckEndpoint::test_response_json_format_on_success
+tests/test_api.py::TestHealthCheckEndpoint::test_instance_id_in_url_parameter
+tests/test_api.py::TestHealthCheckEndpoint::test_response_timestamp_format
+tests/test_api.py::TestHealthCheckEndpoint::test_multiple_valid_api_keys
+tests/test_api.py::TestHealthCheckEndpoint::test_multiple_valid_api_keys
+tests/test_api.py::TestLogging::test_successful_request_is_logged
+  /mnt/0E647A43647A2E19/e-Learning/myProjects/NYMBIS-EC2-Health-Check-API/app/api/routes.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.utcnow().isoformat() + "Z",
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 19 passed, 21 warnings in 0.20s ========================
