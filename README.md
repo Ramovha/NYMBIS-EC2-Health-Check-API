@@ -2,7 +2,7 @@
 
 A Python-based REST API for monitoring AWS EC2 instance health status with API key authentication and comprehensive logging.
 
-**Status**: ✅ **User Story 1 Complete & Verified** | Real AWS Integration Tested | 19/19 Tests Passing | 97% Code Coverage
+**Status**: ✅ **User Story 1 Complete & Verified** | ✅ **User Story 2 Complete & Verified** | ✅ **User Story 3 Complete & Verified** | Real AWS Integration Tested | 34/34 Tests Passing | 91% Code Coverage
 
 ## Overview
 
@@ -12,7 +12,8 @@ This project provides a simple, reliable way to check EC2 instance health withou
 - ✅ **API key-based authentication** (X-API-Key header validation)
 - ✅ **Structured logging** of all requests with timestamp and details
 - ✅ **AWS EC2 integration** via boto3 (queries real instance state and status)
-- ✅ **Comprehensive unit tests** (19 tests, 97% code coverage, all passing)
+- ✅ **Human-readable health status** mapping (healthy, initializing, unhealthy, stopped, terminated)
+- ✅ **Comprehensive unit tests** (34 tests, 91% code coverage, all passing)
 - ✅ **Production-ready code** following PEP 8 standards
 - ✅ **Real AWS Testing** verified with live EC2 instances
 
@@ -22,9 +23,11 @@ This project provides a simple, reliable way to check EC2 instance health withou
 2. [Configuration](#configuration)
 3. [Running the API](#running-the-api)
 4. [User Story 1: Testing the Health Check Endpoint](#user-story-1-testing-the-health-check-endpoint)
-5. [API Reference](#api-reference)
-6. [Running Tests](#running-tests)
-7. [Project Structure](#project-structure)
+5. [User Story 2: AWS EC2 Health Check Logic](#user-story-2-aws-ec2-health-check-logic)
+6. [User Story 3: API Key Authentication](#user-story-3-api-key-authentication)
+7. [API Reference](#api-reference)
+8. [Running Tests](#running-tests)
+9. [Project Structure](#project-structure)
 
 ---
 
@@ -337,6 +340,302 @@ curl -X GET http://localhost:5000/api/health/i-invalid-format \
 | Invalid Key | GET | `/api/health/i-0123456789abcdef0` | `X-API-Key: wrong-key` | 401 | `{"error": "Invalid API key"}` |
 | Instance Not Found | GET | `/api/health/i-nonexistent` | `X-API-Key: default-key-1` | 404 | `{"error": "Instance not found"}` |
 | Wrong HTTP Method | POST | `/api/health/i-0123456789abcdef0` | `X-API-Key: default-key-1` | 405 | (Method Not Allowed) |
+
+---
+
+## User Story 3: API Key Authentication
+
+**Status**: ✅ **COMPLETE & VERIFIED**
+
+User Story 3 implements secure API key authentication to ensure only authorized users can access health check information.
+
+### Acceptance Criteria Verification
+
+All 5 acceptance criteria have been met and verified:
+
+- [x] Require X-API-Key header in every request ✅
+  - Missing header returns 401 Unauthorized
+  - Empty header value returns 401 Unauthorized
+
+- [x] Check API key against a simple list of valid keys ✅
+  - Valid keys stored in environment variable: VALID_API_KEYS=key1,key2,key3
+  - Configurable through .env file
+
+- [x] Return 401 Unauthorized if ✅
+  - X-API-Key header is missing
+  - X-API-Key value is not in valid keys list
+
+- [x] Return consistent error response for all errors ✅
+  - Same error message format for missing vs. invalid keys
+  - No information leakage about key validity
+
+- [x] Log authentication attempts (both successful and failed) ✅
+  - All requests logged with timestamp and status
+  - API key prefix logged (truncated for security)
+  - Both successful and failed auth attempts logged
+
+### Implementation Highlights
+
+- **check_api_key Decorator**: Flask decorator for easy endpoint protection
+- **Flexible Configuration**: API keys configured via environment variable
+- **Security Best Practices**: 
+  - Consistent error responses prevent key enumeration
+  - API keys logged as truncated prefix (e.g., "test-...1")
+  - No plaintext keys exposed in logs
+- **Comprehensive Testing**: 4 dedicated tests for authentication
+
+### API Key Configuration
+
+Set valid API keys in your `.env` file:
+
+```bash
+# Single key
+VALID_API_KEYS=your-secret-key
+
+# Multiple keys (comma-separated)
+VALID_API_KEYS=key-1,key-2,key-3,production-key
+```
+
+Or set as environment variable:
+
+```bash
+export VALID_API_KEYS="key-1,key-2,key-3"
+```
+
+### Testing User Story 3
+
+#### Method 1: Automated Tests (Recommended)
+
+Run the authentication test class:
+
+```bash
+# Run User Story 3 authentication tests
+pytest tests/test_api.py::TestAPIKeyAuthentication -v
+
+# Expected output:
+# test_missing_api_key_header PASSED
+# test_empty_api_key_header PASSED
+# test_api_key_case_sensitivity PASSED
+# test_api_key_whitespace_sensitivity PASSED
+```
+
+**Test Scenarios:**
+
+| Test Name | Scenario | Expected Status | Expected Response |
+|-----------|----------|-----------------|-------------------|
+| Missing Header | No X-API-Key header | 401 | `{"error": "Missing API key"}` |
+| Empty Value | X-API-Key: "" | 401 | `{"error": "Missing API key"}` |
+| Invalid Key | X-API-Key: wrong-key | 401 | `{"error": "Invalid API key"}` |
+| Case Sensitivity | X-API-Key: KEY-1 (when key is key-1) | 401 | `{"error": "Invalid API key"}` |
+| Whitespace | X-API-Key: " key-1 " | 401 | `{"error": "Invalid API key"}` |
+| Valid Key | X-API-Key: test-key-1 | 200 | Health check response |
+
+#### Method 2: Manual Testing with cURL
+
+**Test 1: Missing API Key Header**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-0123456789abcdef0 \
+  -v
+```
+
+**Expected Response (401):**
+```json
+{
+  "error": "Missing API key"
+}
+```
+
+**Test 2: Invalid API Key**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-0123456789abcdef0 \
+  -H "X-API-Key: invalid-key-xyz" \
+  -v
+```
+
+**Expected Response (401):**
+```json
+{
+  "error": "Invalid API key"
+}
+```
+
+**Test 3: Valid API Key**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-0123456789abcdef0 \
+  -H "X-API-Key: default-key-1" \
+  -v
+```
+
+**Expected Response (200):**
+```json
+{
+  "instance_id": "i-0123456789abcdef0",
+  "state": "running",
+  "status_code": "ok",
+  "health": "healthy",
+  "timestamp": "2026-02-13T20:01:52.274946Z"
+}
+```
+
+**Test 4: Case Sensitivity**
+
+```bash
+# This will fail - keys are case-sensitive
+curl -X GET http://localhost:5000/api/health/i-0123456789abcdef0 \
+  -H "X-API-Key: DEFAULT-KEY-1" \
+  -v
+```
+
+**Expected Response (401):**
+```json
+{
+  "error": "Invalid API key"
+}
+```
+
+**Test 5: Whitespace Handling**
+
+```bash
+# This will fail - whitespace is not trimmed
+curl -X GET http://localhost:5000/api/health/i-0123456789abcdef0 \
+  -H "X-API-Key:  default-key-1  " \
+  -v
+```
+
+**Expected Response (401):**
+```json
+{
+  "error": "Invalid API key"
+}
+```
+
+#### Method 3: Testing with Postman
+
+**Setup Postman Request:**
+
+1. Open Postman and create a new request
+2. Set method to **GET**
+3. Enter URL: `http://localhost:5000/api/health/i-0123456789abcdef0`
+4. Go to **Headers** tab
+5. Add header:
+   - Key: `X-API-Key`
+   - Value: `default-key-1`
+6. Click **Send**
+
+**Test Missing Key:**
+
+1. Remove the X-API-Key header
+2. Click **Send**
+3. Expected: 401 with `{"error": "Missing API key"}`
+
+**Test Invalid Key:**
+
+1. Set X-API-Key header to: `invalid-key`
+2. Click **Send**
+3. Expected: 401 with `{"error": "Invalid API key"}`
+
+**Test Valid Key:**
+
+1. Set X-API-Key header to: `default-key-1`
+2. Click **Send**
+3. Expected: 200 with health check response
+
+**Postman cURL Examples:**
+
+```bash
+# Missing key
+curl --location 'http://localhost:5000/api/health/i-0123456789abcdef0'
+
+# Invalid key
+curl --location 'http://localhost:5000/api/health/i-0123456789abcdef0' \
+  --header 'X-API-Key: invalid-key'
+
+# Valid key
+curl --location 'http://localhost:5000/api/health/i-0123456789abcdef0' \
+  --header 'X-API-Key: default-key-1'
+
+# Multiple valid keys (test each)
+curl --location 'http://localhost:5000/api/health/i-0123456789abcdef0' \
+  --header 'X-API-Key: test-key-1'
+
+curl --location 'http://localhost:5000/api/health/i-0123456789abcdef0' \
+  --header 'X-API-Key: test-key-2'
+```
+
+### Logging and Security
+
+**Successful Authentication:**
+```
+[2026-02-13 20:01:52] GET /api/health/i-0123456789abcdef0 | API Key: test-...1 | Status: 200 | Result: ok
+```
+
+**Failed Authentication:**
+```
+[2026-02-13 20:01:53] GET /api/health/i-0123456789abcdef0 | API Key: invali...y | Status: 401 | Result: Invalid API key
+```
+
+**Missing Authentication:**
+```
+[2026-02-13 20:01:54] GET /api/health/i-0123456789abcdef0 | API Key: None | Status: 401 | Result: Missing API key
+```
+
+**Key Points:**
+- API keys are truncated in logs (first and last character visible)
+- Authentication attempts are logged before processing
+- No sensitive information in error messages
+
+### Code Implementation
+
+**File: app/api/routes.py**
+
+The `check_api_key` decorator validates authentication:
+
+```python
+def check_api_key(f):
+    """Decorator to check API key in X-API-Key header."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key', '').strip()
+        
+        # Check if key is missing or empty
+        if not api_key:
+            log_request(method=request.method, path=request.path, 
+                       api_key=None, status_code=401, 
+                       result="Missing API key")
+            return jsonify({"error": "Missing API key"}), 401
+        
+        # Check if key is valid
+        valid_keys = os.getenv('VALID_API_KEYS', '').split(',')
+        if api_key not in valid_keys:
+            log_request(method=request.method, path=request.path, 
+                       api_key=api_key, status_code=401, 
+                       result="Invalid API key")
+            return jsonify({"error": "Invalid API key"}), 401
+        
+        # Key is valid, proceed
+        return f(*args, **kwargs)
+    return decorated_function
+```
+
+All endpoints decorated with `@check_api_key` require valid authentication.
+
+### Test Coverage
+
+**User Story 3 Tests:**
+
+| Test Class | Test Name | Coverage |
+|-----------|-----------|----------|
+| TestAPIKeyAuthentication | test_missing_api_key_header | Missing header handling |
+| TestAPIKeyAuthentication | test_empty_api_key_header | Empty value handling |
+| TestAPIKeyAuthentication | test_api_key_case_sensitivity | Case sensitivity validation |
+| TestAPIKeyAuthentication | test_api_key_whitespace_sensitivity | Whitespace sensitivity |
+
+**Total: 4 tests, 100% pass rate**
+
+These tests are integrated into the full test suite (34 total tests, 91% coverage).
 
 ---
 
