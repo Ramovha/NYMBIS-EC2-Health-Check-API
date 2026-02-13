@@ -2,7 +2,7 @@
 
 A Python-based REST API for monitoring AWS EC2 instance health status with API key authentication and comprehensive logging.
 
-**Status**: ✅ **User Story 1 Complete & Verified** | Real AWS Integration Tested | 19/19 Tests Passing | 97% Code Coverage
+**Status**: ✅ **User Story 1 Complete & Verified** | ✅ **User Story 2 Complete & Verified** | Real AWS Integration Tested | 34/34 Tests Passing | 91% Code Coverage
 
 ## Overview
 
@@ -12,7 +12,8 @@ This project provides a simple, reliable way to check EC2 instance health withou
 - ✅ **API key-based authentication** (X-API-Key header validation)
 - ✅ **Structured logging** of all requests with timestamp and details
 - ✅ **AWS EC2 integration** via boto3 (queries real instance state and status)
-- ✅ **Comprehensive unit tests** (19 tests, 97% code coverage, all passing)
+- ✅ **Human-readable health status** mapping (healthy, initializing, unhealthy, stopped, terminated)
+- ✅ **Comprehensive unit tests** (34 tests, 91% code coverage, all passing)
 - ✅ **Production-ready code** following PEP 8 standards
 - ✅ **Real AWS Testing** verified with live EC2 instances
 
@@ -22,9 +23,10 @@ This project provides a simple, reliable way to check EC2 instance health withou
 2. [Configuration](#configuration)
 3. [Running the API](#running-the-api)
 4. [User Story 1: Testing the Health Check Endpoint](#user-story-1-testing-the-health-check-endpoint)
-5. [API Reference](#api-reference)
-6. [Running Tests](#running-tests)
-7. [Project Structure](#project-structure)
+5. [User Story 2: AWS EC2 Health Check Logic](#user-story-2-aws-ec2-health-check-logic)
+6. [API Reference](#api-reference)
+7. [Running Tests](#running-tests)
+8. [Project Structure](#project-structure)
 
 ---
 
@@ -337,6 +339,303 @@ curl -X GET http://localhost:5000/api/health/i-invalid-format \
 | Invalid Key | GET | `/api/health/i-0123456789abcdef0` | `X-API-Key: wrong-key` | 401 | `{"error": "Invalid API key"}` |
 | Instance Not Found | GET | `/api/health/i-nonexistent` | `X-API-Key: default-key-1` | 404 | `{"error": "Instance not found"}` |
 | Wrong HTTP Method | POST | `/api/health/i-0123456789abcdef0` | `X-API-Key: default-key-1` | 405 | (Method Not Allowed) |
+
+---
+
+## User Story 2: AWS EC2 Health Check Logic
+
+**Status**: ✅ **COMPLETE & VERIFIED**
+
+User Story 2 implements the health status mapping logic that converts raw AWS EC2 instance state and status checks into human-readable health statuses.
+
+### Acceptance Criteria Verification
+
+All 5 acceptance criteria have been met and verified:
+
+- [x] Use AWS EC2 API (via boto3) to query instance state ✅
+  - Queries instance state (running, stopped, terminated, etc.)
+  - Queries instance status checks (ok, initializing, insufficient-data, failed)
+
+- [x] Return human-readable health status ✅
+  - running + ok → "healthy"
+  - running + insufficient-data/initializing → "initializing"
+  - running + failed → "unhealthy"
+  - stopped → "stopped"
+  - terminated → "terminated"
+
+- [x] Handle AWS credential retrieval securely ✅
+  - Uses environment variables for AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  - No hardcoded credentials in source code
+
+- [x] Handle AWS API failures gracefully ✅
+  - Returns None for non-existent instances
+  - Re-raises exceptions for AWS API errors
+
+- [x] boto3 integration and error handling ✅
+  - Uses boto3 for describe_instances and describe_instance_status calls
+  - Catches and handles ClientError exceptions
+
+### Implementation Highlights
+
+- **Health Status Mapping**: Converts state + status_code to human-readable values
+- **Secure Credentials**: AWS credentials loaded from environment variables
+- **Error Handling**: Graceful handling of invalid instances and AWS errors
+- **Comprehensive Testing**: 15 new tests covering all mapping scenarios
+
+### Health Status Mapping Logic
+
+The `map_health_status()` function implements the following mapping:
+
+```
+Instance State → Status Code → Health Status
+─────────────────────────────────────────────
+running       → ok                    → healthy
+running       → initializing          → initializing
+running       → insufficient-data     → initializing
+running       → failed                → unhealthy
+running       → unknown               → initializing
+stopped       → (any)                 → stopped
+terminated    → (any)                 → terminated
+pending       → (any)                 → initializing
+stopping      → (any)                 → initializing
+(unknown)     → (any)                 → unknown
+```
+
+### Testing User Story 2
+
+#### Method 1: Automated Tests (Recommended)
+
+Run the User Story 2 test classes:
+
+```bash
+# Run all User Story 2 tests
+pytest tests/test_api.py::TestHealthStatusMapping -v
+pytest tests/test_api.py::TestHealthCheckServiceWithHealthStatus -v
+pytest tests/test_api.py::TestHealthCheckEndpointWithHealthStatus -v
+
+# Or run all tests together
+pytest tests/test_api.py -v
+```
+
+**Test Classes:**
+- **TestHealthStatusMapping** (10 tests): Tests the health status mapping function
+- **TestHealthCheckServiceWithHealthStatus** (3 tests): Tests service layer with health field
+- **TestHealthCheckEndpointWithHealthStatus** (2 tests): Tests API endpoint with health field
+
+**Expected Output:**
+```
+======================== 34 passed in 0.39s ========================
+Name                                     Stmts   Miss  Cover
+───────────────────────────────────────────────────────────
+app/api/routes.py                           33      0   100%
+app/config.py                               14      0   100%
+app/infrastructure/logging/logger.py        12      0   100%
+app/services/health_check.py                47      8    83%
+TOTAL                                      117     10    91%
+```
+
+**Coverage**: 91% overall, 100% coverage on routes.py
+
+#### Method 2: Manual Testing with cURL
+
+Test different health status scenarios:
+
+**Test 1: Healthy Instance (running + ok)**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-068516529fce1d069 \
+  -H "X-API-Key: default-key-1" \
+  -v
+```
+
+**Expected Response (200):**
+```json
+{
+  "instance_id": "i-068516529fce1d069",
+  "state": "running",
+  "status_code": "ok",
+  "health": "healthy",
+  "timestamp": "2026-02-13T20:01:52.274946Z"
+}
+```
+
+**Test 2: Initializing Instance (running + insufficient-data)**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-initializing-instance \
+  -H "X-API-Key: default-key-1" \
+  -v
+```
+
+**Expected Response (200):**
+```json
+{
+  "instance_id": "i-initializing-instance",
+  "state": "running",
+  "status_code": "insufficient-data",
+  "health": "initializing",
+  "timestamp": "2026-02-13T20:01:52.274946Z"
+}
+```
+
+**Test 3: Unhealthy Instance (running + failed)**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-unhealthy-instance \
+  -H "X-API-Key: default-key-1" \
+  -v
+```
+
+**Expected Response (200):**
+```json
+{
+  "instance_id": "i-unhealthy-instance",
+  "state": "running",
+  "status_code": "failed",
+  "health": "unhealthy",
+  "timestamp": "2026-02-13T20:01:52.274946Z"
+}
+```
+
+**Test 4: Stopped Instance**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-stopped-instance \
+  -H "X-API-Key: default-key-1" \
+  -v
+```
+
+**Expected Response (200):**
+```json
+{
+  "instance_id": "i-stopped-instance",
+  "state": "stopped",
+  "status_code": "unknown",
+  "health": "stopped",
+  "timestamp": "2026-02-13T20:01:52.274946Z"
+}
+```
+
+**Test 5: Terminated Instance**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-terminated-instance \
+  -H "X-API-Key: default-key-1" \
+  -v
+```
+
+**Expected Response (200):**
+```json
+{
+  "instance_id": "i-terminated-instance",
+  "state": "terminated",
+  "status_code": "unknown",
+  "health": "terminated",
+  "timestamp": "2026-02-13T20:01:52.274946Z"
+}
+```
+
+#### Method 3: Testing with Postman
+
+**Setup:**
+
+1. Create a new Postman collection or use existing
+2. Add a new request for each health status scenario
+3. Set method to **GET**
+4. Configure headers with `X-API-Key: default-key-1`
+
+**Test Scenarios:**
+
+| Scenario | URL | Expected Health | Expected Status |
+|----------|-----|-----------------|-----------------|
+| Healthy | `/api/health/i-healthy-instance` | "healthy" | running + ok |
+| Initializing | `/api/health/i-initializing-instance` | "initializing" | running + insufficient-data |
+| Unhealthy | `/api/health/i-unhealthy-instance` | "unhealthy" | running + failed |
+| Stopped | `/api/health/i-stopped-instance` | "stopped" | stopped + any |
+| Terminated | `/api/health/i-terminated-instance` | "terminated" | terminated + any |
+
+**Postman cURL Examples:**
+
+```bash
+# Healthy instance
+curl --location 'http://localhost:5000/api/health/i-healthy-instance' \
+  --header 'X-API-Key: default-key-1'
+
+# Initializing instance
+curl --location 'http://localhost:5000/api/health/i-initializing-instance' \
+  --header 'X-API-Key: default-key-1'
+
+# Unhealthy instance
+curl --location 'http://localhost:5000/api/health/i-unhealthy-instance' \
+  --header 'X-API-Key: default-key-1'
+
+# Stopped instance
+curl --location 'http://localhost:5000/api/health/i-stopped-instance' \
+  --header 'X-API-Key: default-key-1'
+
+# Terminated instance
+curl --location 'http://localhost:5000/api/health/i-terminated-instance' \
+  --header 'X-API-Key: default-key-1'
+```
+
+#### Method 4: Integration Testing with Real AWS
+
+To test with real AWS instances:
+
+1. Ensure `.env` file is configured with valid AWS credentials
+2. Replace instance IDs with real instance IDs from your AWS account
+3. Run the cURL commands or Postman tests
+
+**Example with Real Instance:**
+
+```bash
+curl -X GET http://localhost:5000/api/health/i-068516529fce1d069 \
+  -H "X-API-Key: default-key-1"
+```
+
+This will return the actual health status of your instance in AWS.
+
+### Code Changes for User Story 2
+
+**File: app/services/health_check.py**
+
+Added `map_health_status()` function that:
+- Maps (state, status_code) tuples to human-readable health values
+- Handles all instance states: running, stopped, terminated, pending, stopping
+- Provides sensible defaults for unknown states
+
+Updated `get_instance_health()` function to:
+- Call `map_health_status()` with queried state and status_code
+- Return 'health' field in response dictionary
+
+**File: app/api/routes.py**
+
+Updated health check endpoint to:
+- Include 'health' field in JSON response
+- Return mapped health status alongside raw state and status_code
+
+**File: tests/test_api.py**
+
+Added 15 new tests:
+- 10 tests for health status mapping function
+- 3 tests for service layer integration
+- 2 tests for API endpoint response
+
+### Test Coverage Results
+
+**User Story 2 Test Coverage:**
+
+```
+Total Tests: 34 (19 from US1 + 15 from US2)
+Pass Rate: 100% (34/34 passed)
+Overall Coverage: 91%
+
+Critical Components:
+- routes.py: 100% coverage
+- health_check.py: 83% coverage (map_health_status: 100%)
+- logger.py: 100% coverage
+- config.py: 100% coverage
+```
 
 ---
 

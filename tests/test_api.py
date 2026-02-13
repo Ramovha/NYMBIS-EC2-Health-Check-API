@@ -385,3 +385,221 @@ class TestLogging:
         assert log_mock.called
         call_args = log_mock.call_args
         assert call_args.kwargs["status_code"] == 500
+
+
+class TestHealthStatusMapping:
+    """Tests for User Story 2: Health Status Mapping.
+    
+    Tests the map_health_status function which converts raw AWS state + status_code
+    into human-readable health status values.
+    """
+    
+    @pytest.fixture
+    def map_health_status(self):
+        """Import the map_health_status function."""
+        from app.services.health_check import map_health_status
+        return map_health_status
+    
+    def test_healthy_status_running_with_ok(self, map_health_status):
+        """Test that running instance with ok status maps to 'healthy'."""
+        result = map_health_status('running', 'ok')
+        assert result == 'healthy'
+    
+    def test_initializing_status_running_with_insufficient_data(self, map_health_status):
+        """Test that running instance with insufficient-data maps to 'initializing'."""
+        result = map_health_status('running', 'insufficient-data')
+        assert result == 'initializing'
+    
+    def test_initializing_status_running_with_initializing(self, map_health_status):
+        """Test that running instance with initializing status maps to 'initializing'."""
+        result = map_health_status('running', 'initializing')
+        assert result == 'initializing'
+    
+    def test_unhealthy_status_running_with_failed(self, map_health_status):
+        """Test that running instance with failed status maps to 'unhealthy'."""
+        result = map_health_status('running', 'failed')
+        assert result == 'unhealthy'
+    
+    def test_stopped_status_when_stopped(self, map_health_status):
+        """Test that stopped instance maps to 'stopped'."""
+        result = map_health_status('stopped', 'ok')
+        assert result == 'stopped'
+    
+    def test_terminated_status_when_terminated(self, map_health_status):
+        """Test that terminated instance maps to 'terminated'."""
+        result = map_health_status('terminated', 'ok')
+        assert result == 'terminated'
+    
+    def test_initializing_status_when_pending(self, map_health_status):
+        """Test that pending instance maps to 'initializing'."""
+        result = map_health_status('pending', 'ok')
+        assert result == 'initializing'
+    
+    def test_initializing_status_when_stopping(self, map_health_status):
+        """Test that stopping instance maps to 'initializing'."""
+        result = map_health_status('stopping', 'ok')
+        assert result == 'initializing'
+    
+    def test_initializing_status_running_with_unknown(self, map_health_status):
+        """Test that running instance with unknown status maps to 'initializing'."""
+        result = map_health_status('running', 'unknown')
+        assert result == 'initializing'
+    
+    def test_unknown_status_for_unknown_state(self, map_health_status):
+        """Test that unknown instance state maps to 'unknown'."""
+        result = map_health_status('unknown-state', 'ok')
+        assert result == 'unknown'
+
+
+class TestHealthCheckServiceWithHealthStatus:
+    """Tests for User Story 2: Full health check service with health status mapping.
+    
+    Tests that get_instance_health returns the 'health' field with correct mappings.
+    """
+    
+    def test_get_instance_health_returns_health_field(self, mocker):
+        """Test that get_instance_health includes 'health' field in response."""
+        from app.services.health_check import get_instance_health
+        
+        # Mock boto3 client
+        mock_client = mocker.MagicMock()
+        mocker.patch('app.services.health_check.boto3.client', return_value=mock_client)
+        
+        # Setup mock responses
+        mock_client.describe_instances.return_value = {
+            'Reservations': [{
+                'Instances': [{
+                    'InstanceId': 'i-test123',
+                    'State': {'Name': 'running'}
+                }]
+            }]
+        }
+        
+        mock_client.describe_instance_status.return_value = {
+            'InstanceStatuses': [{
+                'InstanceStatus': {'Status': 'ok'}
+            }]
+        }
+        
+        # Call the function
+        result = get_instance_health('i-test123')
+        
+        # Verify result includes health field
+        assert result is not None
+        assert 'health' in result
+        assert result['health'] == 'healthy'
+        assert result['state'] == 'running'
+        assert result['status_code'] == 'ok'
+    
+    def test_get_instance_health_unhealthy_mapping(self, mocker):
+        """Test that unhealthy instances are mapped correctly."""
+        from app.services.health_check import get_instance_health
+        
+        # Mock boto3 client
+        mock_client = mocker.MagicMock()
+        mocker.patch('app.services.health_check.boto3.client', return_value=mock_client)
+        
+        # Setup mock responses for unhealthy instance
+        mock_client.describe_instances.return_value = {
+            'Reservations': [{
+                'Instances': [{
+                    'InstanceId': 'i-test123',
+                    'State': {'Name': 'running'}
+                }]
+            }]
+        }
+        
+        mock_client.describe_instance_status.return_value = {
+            'InstanceStatuses': [{
+                'InstanceStatus': {'Status': 'failed'}
+            }]
+        }
+        
+        # Call the function
+        result = get_instance_health('i-test123')
+        
+        # Verify result is unhealthy
+        assert result is not None
+        assert result['health'] == 'unhealthy'
+    
+    def test_get_instance_health_stopped_mapping(self, mocker):
+        """Test that stopped instances are mapped correctly."""
+        from app.services.health_check import get_instance_health
+        
+        # Mock boto3 client
+        mock_client = mocker.MagicMock()
+        mocker.patch('app.services.health_check.boto3.client', return_value=mock_client)
+        
+        # Setup mock responses for stopped instance
+        mock_client.describe_instances.return_value = {
+            'Reservations': [{
+                'Instances': [{
+                    'InstanceId': 'i-test123',
+                    'State': {'Name': 'stopped'}
+                }]
+            }]
+        }
+        
+        mock_client.describe_instance_status.return_value = {
+            'InstanceStatuses': []
+        }
+        
+        # Call the function
+        result = get_instance_health('i-test123')
+        
+        # Verify result is stopped
+        assert result is not None
+        assert result['health'] == 'stopped'
+
+
+class TestHealthCheckEndpointWithHealthStatus:
+    """Tests for User Story 2: API endpoint returns health field.
+    
+    Tests that the /api/health/<instance_id> endpoint returns the 'health' field.
+    """
+    
+    def test_endpoint_returns_health_field(self, client, mocker, valid_api_key):
+        """Test that successful API response includes 'health' field."""
+        # Mock the health check to return full response with health status
+        mock_health = {
+            "state": "running",
+            "status_code": "ok",
+            "health": "healthy"
+        }
+        mocker.patch(
+            "app.api.routes.get_instance_health",
+            return_value=mock_health
+        )
+        
+        headers = {"X-API-Key": valid_api_key}
+        response = client.get("/api/health/i-test123", headers=headers)
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        
+        # Verify response includes health field
+        assert "health" in data
+        assert data["health"] == "healthy"
+        assert data["state"] == "running"
+        assert data["status_code"] == "ok"
+    
+    def test_endpoint_returns_unhealthy_status(self, client, mocker, valid_api_key):
+        """Test that unhealthy instances return correct health status in API."""
+        # Mock unhealthy instance
+        mock_health = {
+            "state": "running",
+            "status_code": "failed",
+            "health": "unhealthy"
+        }
+        mocker.patch(
+            "app.api.routes.get_instance_health",
+            return_value=mock_health
+        )
+        
+        headers = {"X-API-Key": valid_api_key}
+        response = client.get("/api/health/i-test123", headers=headers)
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["health"] == "unhealthy"
+

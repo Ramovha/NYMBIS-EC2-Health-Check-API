@@ -80,6 +80,7 @@ def health_check(instance_id):
             "instance_id": instance_id,
             "state": health_status.get("state"),
             "status_code": health_status.get("status_code"),
+            "health": health_status.get("health"),
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
 

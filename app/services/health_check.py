@@ -8,16 +8,67 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def map_health_status(state, status_code):
+    """Map EC2 instance state and status checks to human-readable health status.
+    
+    User Story 2 implementation: Map raw AWS state and status codes to
+    a simple, human-readable health status.
+    
+    Args:
+        state (str): EC2 instance state (running, stopped, terminated, stopping, pending, etc.)
+        status_code (str): Instance status checks (ok, initializing, insufficient-data, failed, unknown)
+    
+    Returns:
+        str: Human-readable health status:
+            - "healthy": Instance is running with all status checks passing
+            - "initializing": Instance is running but still initializing
+            - "unhealthy": Instance is running but status checks failed
+            - "stopped": Instance is stopped
+            - "terminated": Instance is terminated
+            - "unknown": Unknown or transitional state
+    """
+    # Handle stopped and terminated states
+    if state == 'stopped':
+        return 'stopped'
+    elif state == 'terminated':
+        return 'terminated'
+    
+    # Handle running state with status checks
+    elif state == 'running':
+        if status_code == 'ok':
+            return 'healthy'
+        elif status_code == 'initializing':
+            return 'initializing'
+        elif status_code == 'insufficient-data':
+            return 'initializing'
+        elif status_code == 'failed':
+            return 'unhealthy'
+        else:  # unknown, or other values
+            return 'initializing'
+    
+    # Handle transitional states
+    elif state in ['stopping', 'pending']:
+        return 'initializing'
+    
+    # Default for unknown states
+    else:
+        return 'unknown'
+
+
 def get_instance_health(instance_id):
     """Get health status of an EC2 instance.
     
     Queries AWS EC2 API to get instance state and status checks.
+    Maps them to human-readable health status (healthy, initializing, unhealthy, stopped, terminated).
+    
+    User Story 2 implementation: Uses boto3 to query real AWS EC2 instance data
+    and derives health status from state + status checks.
     
     Args:
         instance_id (str): AWS EC2 instance ID (e.g., i-0123456789abcdef0)
     
     Returns:
-        dict: Health status with 'state' and 'status_code' keys,
+        dict: Health status with 'state', 'status_code', and 'health' keys,
               or None if instance not found
               
     Raises:
@@ -55,9 +106,13 @@ def get_instance_health(instance_id):
             instance_status = status.get('InstanceStatus', {})
             status_code = instance_status.get('Status', 'unknown')
         
+        # Map to human-readable health status (User Story 2)
+        health_status = map_health_status(instance_state, status_code)
+        
         return {
             'state': instance_state,
-            'status_code': status_code
+            'status_code': status_code,
+            'health': health_status
         }
         
     except ClientError as e:
