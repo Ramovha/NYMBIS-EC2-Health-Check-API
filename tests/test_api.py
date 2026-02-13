@@ -61,14 +61,19 @@ class TestHealthCheckEndpoint:
         assert data["error"] == "Invalid API key"
 
     def test_endpoint_with_valid_api_key_request_structure(
-        self, client, valid_instance_id, valid_api_key
+        self, client, valid_instance_id, valid_api_key, mocker
     ):
         """Test that endpoint accepts request with valid API key and returns proper structure."""
+        # Mock the health check to return None (instance not found)
+        mocker.patch(
+            "app.api.routes.get_instance_health",
+            return_value=None
+        )
+        
         headers = {"X-API-Key": valid_api_key}
         response = client.get(f"/api/health/{valid_instance_id}", headers=headers)
         
-        # Status should be either 200, 404, or 500 depending on implementation
-        # For now, since get_instance_health returns None, we expect 404
+        # When instance not found, should return 404
         assert response.status_code == 404
         data = json.loads(response.data)
         assert "error" in data
