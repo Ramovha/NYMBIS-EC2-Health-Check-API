@@ -706,6 +706,95 @@ or
 
 ---
 
+## User Story 4: Structured Logging
+
+**Status**: ✅ **COMPLETE & VERIFIED**
+
+Comprehensive structured logging of all API requests with timestamps, HTTP methods, paths, API key prefixes (truncated for security), status codes, and error messages.
+
+### Quick Test
+
+```bash
+# Run logging tests
+pytest tests/test_api.py::TestLogging -v
+
+# View logs after API requests
+tail -10 logs/api.log
+```
+
+**Log Example:**
+```
+2026-02-14 10:30:45 | GET /api/health/i-0123456789abcdef0 | Key: test-key-... | Status: 200 | Result: ok
+2026-02-14 10:30:46 | GET /api/health/i-0123456789abcdef0 | Key: invalid-... | Status: 401 | Result: Invalid API key
+```
+
+**📖 Full Documentation**: See [USER_STORY_4_LOGGING.md](USER_STORY_4_LOGGING.md)
+
+### Key Features
+
+- ✅ Human-readable log format (not JSON)
+- ✅ Writes to `logs/api.log`
+- ✅ ISO 8601 timestamps (YYYY-MM-DD HH:MM:SS)
+- ✅ API keys truncated (first 10 chars only)
+- ✅ All request types logged (success, auth failures, errors)
+- ✅ 4/4 logging tests passing
+- ✅ Easy to grep/search with Unix tools
+
+---
+
+## User Story 5: Unit Tests
+
+**Status**: ✅ **COMPLETE & VERIFIED**
+
+Comprehensive unit test suite with 34 tests covering all endpoints, authentication, logging, and health status mapping. Tests use pytest and mocking to avoid real AWS calls.
+
+### Quick Test
+
+```bash
+# Run all tests
+pytest tests/test_api.py -v
+
+# Run with coverage report
+pytest tests/test_api.py -v --cov=app --cov-report=term-missing
+
+# Run specific test class
+pytest tests/test_api.py::TestAPIKeyAuthentication -v
+```
+
+**Expected Results:**
+```
+✅ 34 passed in 0.61s
+✅ 91% code coverage (exceeds 70% target)
+✅ 100% pass rate
+```
+
+**📖 Full Documentation**: See [USER_STORY_5_TESTS.md](USER_STORY_5_TESTS.md)
+
+### Test Coverage
+
+| Test Class | Tests | Purpose |
+|-----------|-------|---------|
+| TestHealthCheckEndpoint | 11 | Endpoint functionality, HTTP methods, response format |
+| TestAPIKeyAuthentication | 4 | Auth validation, edge cases |
+| TestLogging | 4 | Request logging, success/failure |
+| TestHealthStatusMapping | 10 | Health status mapping logic |
+| TestHealthCheckServiceWithHealthStatus | 3 | Service layer health field |
+| TestHealthCheckEndpointWithHealthStatus | 2 | API response health field |
+| **TOTAL** | **34** | **91% coverage, 0.61s execution** |
+
+### Key Features
+
+- ✅ 34 comprehensive unit tests
+- ✅ Uses pytest + pytest-mock
+- ✅ All AWS calls mocked (no real calls)
+- ✅ 91% code coverage (exceeds 70% target)
+- ✅ 100% test pass rate
+- ✅ Fast execution (~0.6 seconds)
+- ✅ Descriptive test names
+- ✅ Isolated, reusable test fixtures
+
+---
+
 ## Running Tests
 
 ### Full Test Suite
@@ -731,48 +820,31 @@ pytest tests/test_api.py::TestAPIKeyAuthentication -v
 
 # Test logging functionality
 pytest tests/test_api.py::TestLogging -v
+
+# Test health status mapping
+pytest tests/test_api.py::TestHealthStatusMapping -v
 ```
 
 ### Test Details
 
-The test suite (`tests/test_api.py`) includes:
-
-**TestHealthCheckEndpoint** (11 tests)
-- Valid requests with proper authentication
-- Invalid/missing API key handling
-- Correct HTTP status codes
-- Response JSON structure validation
-- Instance not found scenarios
-- AWS API error handling
-- HTTP method restrictions (GET only)
-- Timestamp format validation
-
-**TestAPIKeyAuthentication** (4 tests)
-- Missing header validation
-- Empty string handling
-- Case sensitivity
-- Whitespace sensitivity
-
-**TestLogging** (4 tests)
-- Successful request logging
-- Failed authentication logging
-- 404 error logging
-- AWS error logging
+For comprehensive test information, see:
+- **[USER_STORY_5_TESTS.md](USER_STORY_5_TESTS.md)** - All test details, fixtures, mocking strategy
+- **[USER_STORY_4_LOGGING.md](USER_STORY_4_LOGGING.md)** - Logging test details and examples
 
 ### Coverage Report
 
 Target: **70%+ coverage** ✅
 
-**Current Status: 97% coverage**
+**Current Status: 91% coverage**
 
 ```
 app/api/routes.py                33 statements, 0 missing  ✅ 100%
 app/config.py                    14 statements, 0 missing  ✅ 100%
 app/infrastructure/logging.py    12 statements, 0 missing  ✅ 100%
 app/main.py                      11 statements, 2 missing  ✅ 82%
-app/services/health_check.py      2 statements, 0 missing  ✅ 100%
+app/services/health_check.py     47 statements, 8 missing  ✅ 83%
 ─────────────────────────────────────────────────────────────
-TOTAL                            72 statements, 2 missing  ✅ 97%
+TOTAL                           117 statements, 10 missing ✅ 91%
 ```
 
 ---
