@@ -13,7 +13,7 @@ def ensure_log_directory():
 
 def log_request(method, path, api_key, status_code, result):
     """Log an API request with timestamp and details.
-    
+
     Args:
         method (str): HTTP method (GET, POST, etc.)
         path (str): Request path

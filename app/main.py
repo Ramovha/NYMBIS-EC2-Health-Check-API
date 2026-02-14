@@ -6,10 +6,10 @@ from app.api.routes import health_bp
 
 def create_app(config_class=DevelopmentConfig):
     """Create and configure the Flask application.
-    
+
     Args:
         config_class: Configuration class to use (default: DevelopmentConfig)
-    
+
     Returns:
         Flask: Configured Flask application instance
     """

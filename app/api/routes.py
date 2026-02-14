@@ -9,7 +9,7 @@ health_bp = Blueprint("health", __name__, url_prefix="/api")
 
 def check_api_key(f):
     """Decorator to validate API key in request header.
-    
+
     Checks if the X-API-Key header is present and valid.
     Returns 401 Unauthorized if missing or invalid.
     """
@@ -48,13 +48,13 @@ def check_api_key(f):
 @check_api_key
 def health_check(instance_id):
     """Get health status of an EC2 instance.
-    
+
     Args:
         instance_id (str): AWS EC2 instance ID (e.g., i-0123456789abcdef0)
-    
+
     Returns:
         JSON response with instance health status
-    
+
     Status Codes:
         200: Instance health retrieved successfully
         401: Missing or invalid API key
